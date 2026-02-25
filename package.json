@@ -1,0 +1,12 @@
+{
+  "name": "breach-wanderers",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npx wrangler pages dev public --port 8788",
+    "deploy": "npx wrangler pages deploy public --project-name breach-wanderers"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
