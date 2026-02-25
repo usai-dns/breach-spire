@@ -32,7 +32,7 @@ export class DeckManager {
   }
 
   drawCards(count = null) {
-    const toDraw = count || this.handSize;
+    const toDraw = count != null ? count : this.handSize;
     const drawn = [];
 
     for (let i = 0; i < toDraw; i++) {

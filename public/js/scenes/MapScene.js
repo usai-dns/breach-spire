@@ -213,51 +213,52 @@ export class MapScene extends Phaser.Scene {
   }
 
   selectNode(node) {
-    this.runManager.visitNode(node.id);
     const state = this.runManager.getState();
 
     switch (node.type) {
       case 'combat':
       case 'elite': {
         const enemyIds = this.runManager.getEncounter(node.id);
-        if (enemyIds) {
-          this.scene.start('CombatScene', {
-            playerState: {
-              hp: state.hp,
-              maxHp: state.maxHp,
-              deck: [...state.deck]
-            },
-            enemyIds,
-            runManager: this.runManager,
-            nodeType: node.type
-          });
-        }
+        if (!enemyIds) return;
+        this.runManager.visitNode(node.id);
+        this.scene.start('CombatScene', {
+          playerState: {
+            hp: state.hp,
+            maxHp: state.maxHp,
+            deck: [...state.deck]
+          },
+          enemyIds,
+          runManager: this.runManager,
+          nodeType: node.type
+        });
         break;
       }
       case 'rest':
+        this.runManager.visitNode(node.id);
         this.scene.start('RestScene', { runManager: this.runManager });
         break;
       case 'event':
+        this.runManager.visitNode(node.id);
         this.scene.start('EventScene', { runManager: this.runManager });
         break;
       case 'boss': {
         const bossEnemies = this.runManager.getEncounter(node.id);
-        if (bossEnemies) {
-          this.scene.start('CombatScene', {
-            playerState: {
-              hp: state.hp,
-              maxHp: state.maxHp,
-              deck: [...state.deck]
-            },
-            enemyIds: bossEnemies,
-            runManager: this.runManager,
-            nodeType: 'boss'
-          });
-        }
+        if (!bossEnemies) return;
+        this.runManager.visitNode(node.id);
+        this.scene.start('CombatScene', {
+          playerState: {
+            hp: state.hp,
+            maxHp: state.maxHp,
+            deck: [...state.deck]
+          },
+          enemyIds: bossEnemies,
+          runManager: this.runManager,
+          nodeType: 'boss'
+        });
         break;
       }
       default:
-        // Unknown node type, go to map
+        this.runManager.visitNode(node.id);
         this.scene.start('MapScene', { runManager: this.runManager });
     }
   }

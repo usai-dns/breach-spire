@@ -808,15 +808,24 @@ export class CombatScene extends Phaser.Scene {
 
     // Start new player turn
     await this.showTurnBanner('YOUR TURN');
-    this.animating = false;
     await this.startPlayerTurn();
   }
 
   onCombatWin() {
-    this.showMessage('VICTORY!', 2000);
+    this.animating = true;
+    const isBoss = this.combatData.nodeType === 'boss';
+    this.showMessage(isBoss ? 'BREACH SEALED!' : 'VICTORY!', 2000);
     this.time.delayedCall(1500, () => {
       if (this.combatData.quickCombat) {
         this.scene.start('MenuScene');
+      } else if (isBoss) {
+        const rm = this.combatData.runManager;
+        rm.recordCombatWin();
+        this.scene.start('GameOverScene', {
+          combatsWon: rm.getState().combatsWon,
+          runState: rm.getState(),
+          victory: true
+        });
       } else {
         this.scene.start('RewardScene', {
           playerHp: this.combat.getPlayerHp(),
@@ -828,22 +837,23 @@ export class CombatScene extends Phaser.Scene {
   }
 
   onCombatLose() {
+    this.animating = true;
     this.showMessage('DEFEAT', 2000);
     this.time.delayedCall(1500, () => {
+      const rm = this.combatData.runManager;
       this.scene.start('GameOverScene', {
-        combatsWon: this.combatData.runManager
-          ? this.combatData.runManager.getState().combatsWon
-          : 0
+        combatsWon: rm ? rm.getState().combatsWon : 0,
+        runState: rm ? rm.getState() : null,
+        victory: false
       });
     });
   }
 
   enableInput(enabled) {
-    this.endTurnContainer.setInteractive(enabled ? { useHandCursor: true } : false);
-    if (!enabled) {
-      this.endTurnContainer.disableInteractive();
-    } else {
+    if (enabled) {
       this.endTurnContainer.setInteractive({ useHandCursor: true });
+    } else {
+      this.endTurnContainer.disableInteractive();
     }
   }
 

@@ -101,7 +101,9 @@ export class RunManager {
 
     const offered = new Set();
 
-    while (rewards.length < 3) {
+    let attempts = 0;
+    while (rewards.length < 3 && attempts < 30) {
+      attempts++;
       const rarity = this.rollRarity(rarityWeights);
       const pool = REWARD_POOL[rarity];
       if (!pool || pool.length === 0) continue;
@@ -109,8 +111,11 @@ export class RunManager {
       const cardId = pool[Math.floor(Math.random() * pool.length)];
       if (offered.has(cardId)) continue;
 
+      const card = CARDS[cardId];
+      if (!card) continue;
+
       offered.add(cardId);
-      rewards.push(CARDS[cardId]);
+      rewards.push(card);
     }
 
     return rewards;
