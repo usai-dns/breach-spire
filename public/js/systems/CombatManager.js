@@ -15,8 +15,9 @@ export const CombatState = {
 };
 
 export class CombatManager {
-  constructor(playerState, enemyIds) {
+  constructor(playerState, enemyIds, opts = {}) {
     this.logger = new Logger();
+    if (opts.silent) this.logger.enabled = false;
     this.effectResolver = new EffectResolver(this.logger);
     this.enemyAI = new EnemyAI(this.logger);
 

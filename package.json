@@ -5,7 +5,11 @@
   "private": true,
   "scripts": {
     "dev": "npx wrangler pages dev public --port 8788",
-    "deploy": "npx wrangler pages deploy public --project-name breach-wanderers"
+    "deploy": "npx wrangler deploy",
+    "test": "node test/combat.test.js",
+    "test:balance": "node test/sim-runner.js 500",
+    "test:balance:quick": "node test/sim-runner.js 100",
+    "test:all": "node test/combat.test.js && node test/sim-runner.js 200"
   },
   "devDependencies": {
     "wrangler": "^3.0.0"
