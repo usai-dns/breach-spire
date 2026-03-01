@@ -41,12 +41,26 @@ export class CombatScene extends Phaser.Scene {
     // Draw background
     this.createBackground();
 
+    // Click on background to cancel card selection
+    this.input.on('pointerdown', (pointer) => {
+      // Only cancel if we're in targeting mode and clicked empty space
+      if (this.needsTarget && this.selectedCardIndex >= 0) {
+        // Small delay to let card/enemy clicks fire first
+        this.time.delayedCall(10, () => {
+          if (this.needsTarget) {
+            this.cancelSelection();
+          }
+        });
+      }
+    });
+
     // Create UI elements
     this.createPlayerUI();
     this.createEnemyDisplay();
     this.createEndTurnButton();
     this.createDeckCounters();
     this.createTurnIndicator();
+    this.createTargetingPrompt();
 
     // Start first turn
     this.time.delayedCall(300, () => {
@@ -681,36 +695,75 @@ export class CombatScene extends Phaser.Scene {
     this.turnText.setText(`Turn ${state.turn}`);
   }
 
+  createTargetingPrompt() {
+    this.targetPrompt = this.add.text(this.W / 2, this.H * 0.48, '', {
+      fontSize: '14px',
+      fill: '#f1c40f',
+      fontFamily: 'monospace',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5).setDepth(300).setVisible(false);
+  }
+
+  showTargetingPrompt(text) {
+    this.targetPrompt.setText(text);
+    this.targetPrompt.setVisible(true);
+  }
+
+  hideTargetingPrompt() {
+    this.targetPrompt.setVisible(false);
+  }
+
   // ===============================
   // GAME FLOW
   // ===============================
 
   async startPlayerTurn() {
+    this.animating = true;
+    this.selectedCardIndex = -1;
+    this.needsTarget = false;
+    this.hideTargetingPrompt();
+
     const events = this.combat.startPlayerTurn();
     await this.processEvents(events);
     this.renderHand();
     this.updateAllUI();
+
+    // CRITICAL: reset animating flag so player can interact
+    this.animating = false;
     this.enableInput(true);
+  }
+
+  cancelSelection() {
+    this.selectedCardIndex = -1;
+    this.needsTarget = false;
+    this.hideTargetingPrompt();
+    // Re-render hand to reset all card positions and alphas
+    this.renderHand();
   }
 
   onCardClick(handIndex) {
     if (this.animating) return;
     if (!this.combat.canPlayCard(handIndex)) return;
 
+    // If clicking the already-selected card, deselect it
     if (this.selectedCardIndex === handIndex) {
-      // Deselect
-      this.selectedCardIndex = -1;
-      this.needsTarget = false;
-      this.renderHand();
+      this.cancelSelection();
       return;
     }
 
+    // If selecting a different card while one is selected, switch
+    if (this.selectedCardIndex >= 0) {
+      this.cancelSelection();
+    }
+
     if (this.combat.cardNeedsTarget(handIndex)) {
-      // Need to select enemy target
+      // Single-target card: need to select an enemy
       this.selectedCardIndex = handIndex;
       this.needsTarget = true;
 
-      // Highlight selected card
+      // Highlight selected card, dim others
       this.cardSprites.forEach((cs, i) => {
         if (i === handIndex) {
           cs.container.setScale(1.15);
@@ -722,10 +775,28 @@ export class CombatScene extends Phaser.Scene {
         }
       });
 
-      // Show targeting prompt
-      this.showMessage('Select a target', 1000);
+      // Highlight targetable enemies
+      const state = this.combat.getState();
+      this.enemySprites.forEach((sprite, i) => {
+        if (state.enemies[i].hp > 0) {
+          this.tweens.add({
+            targets: sprite.container,
+            scaleX: { from: 1.0, to: 1.08 },
+            scaleY: { from: 1.0, to: 1.08 },
+            duration: 400,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+          });
+        }
+      });
+
+      this.showTargetingPrompt('Click an enemy to target');
     } else {
-      // Auto-target (self, all, random)
+      // Self / all / random cards: play immediately
+      // Stop event from reaching background cancel handler
+      this.needsTarget = false;
+      this.selectedCardIndex = -1;
       this.playCardAtIndex(handIndex, 0);
     }
   }
@@ -737,15 +808,31 @@ export class CombatScene extends Phaser.Scene {
     if (state.enemies[enemyIndex].hp <= 0) return;
 
     if (this.needsTarget && this.selectedCardIndex >= 0) {
-      this.playCardAtIndex(this.selectedCardIndex, enemyIndex);
-      this.needsTarget = false;
+      const cardIndex = this.selectedCardIndex;
       this.selectedCardIndex = -1;
+      this.needsTarget = false;
+      this.hideTargetingPrompt();
+
+      // Stop enemy pulse tweens
+      this.enemySprites.forEach(sprite => {
+        this.tweens.killTweensOf(sprite.container);
+        sprite.container.setScale(1);
+      });
+
+      this.playCardAtIndex(cardIndex, enemyIndex);
     }
   }
 
   async playCardAtIndex(handIndex, targetIndex) {
     this.enableInput(false);
     this.animating = true;
+    this.hideTargetingPrompt();
+
+    // Stop any enemy pulse tweens
+    this.enemySprites.forEach(sprite => {
+      this.tweens.killTweensOf(sprite.container);
+      sprite.container.setScale(1);
+    });
 
     const events = this.combat.playCard(handIndex, targetIndex);
     if (!events) {
@@ -778,6 +865,7 @@ export class CombatScene extends Phaser.Scene {
 
   async onEndTurn() {
     if (this.animating) return;
+    this.cancelSelection();
     this.enableInput(false);
     this.animating = true;
 
@@ -1099,8 +1187,17 @@ export class CombatScene extends Phaser.Scene {
   }
 
   async animateCardPlay(event) {
-    // Brief flash effect
-    await this.delay(100);
+    // Show the played card name
+    const card = event.card;
+    const colors = CARD_COLORS[card.type] || CARD_COLORS.attack;
+    this.showFloatingText(
+      this.W / 2,
+      this.H * 0.48,
+      card.name,
+      colors.text,
+      18
+    );
+    await this.delay(150);
   }
 
   // ===============================
