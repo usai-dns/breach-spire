@@ -1,5 +1,7 @@
 name = "breach-wanderers"
 compatibility_date = "2025-01-01"
+account_id = "f1d19cc490b902a854ac1b43b5808673"
+main = "src/worker.js"
 
 [assets]
 directory = "./public"
